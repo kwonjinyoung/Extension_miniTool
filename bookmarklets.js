@@ -82,21 +82,301 @@ export const bookmarklets = {
         }
     },
     
-    // 모든 이미지 다운로드
+    // 모든 이미지 다운로드 (간단한 버전)
     downloadAllImages: {
         func: function() {
-            const images = document.querySelectorAll('img');
-            const imageUrls = Array.from(images)
-                .map(img => img.src)
-                .filter(src => src && src.startsWith('http'));
+            // 모든 이미지 URL 수집
+            const images = [];
+            const urls = new Set();
             
-            if (!imageUrls.length) {
-                alert('다운로드 가능한 이미지가 없습니다.');
+            // img 태그에서 수집
+            document.querySelectorAll('img').forEach(img => {
+                if (img.src && img.src.startsWith('http') && !urls.has(img.src)) {
+                    urls.add(img.src);
+                    images.push({
+                        url: img.src,
+                        type: 'img'
+                    });
+                }
+            });
+            
+            // background-image에서 수집 (선택사항)
+            document.querySelectorAll('*').forEach(el => {
+                try {
+                    const bg = getComputedStyle(el).backgroundImage;
+                    if (bg && bg !== 'none') {
+                        const matches = bg.match(/url\(['"]?([^'"]+)['"]?\)/g);
+                        if (matches) {
+                            matches.forEach(m => {
+                                const url = m.replace(/url\(['"]?([^'"]+)['"]?\)/, '$1');
+                                if (url && url.startsWith('http') && !urls.has(url)) {
+                                    urls.add(url);
+                                    images.push({
+                                        url: url,
+                                        type: 'background'
+                                    });
+                                }
+                            });
+                        }
+                    }
+                } catch (e) {}
+            });
+            
+            console.log(`수집된 이미지 URL 수: ${images.length}`);
+            
+            if (images.length === 0) {
+                alert('이미지를 찾을 수 없습니다.');
+                return null;
+            }
+            
+            // 상태 표시
+            const status = document.createElement('div');
+            status.style.cssText = 'position:fixed;top:10px;right:10px;background:#333;color:#fff;padding:10px;border-radius:5px;z-index:9999;font-family:sans-serif;';
+            status.textContent = `${images.length}개 이미지 발견. 다운로드 준비 중...`;
+            document.body.appendChild(status);
+            
+            setTimeout(() => document.body.removeChild(status), 3000);
+            
+            // background script에서 처리하도록 URL 목록 반환
+            return {
+                action: 'downloadImagesAsZip',
+                images: images
+            };
+        }
+    },
+    
+    // 모든 이미지 다운로드 (복잡한 버전 - 백업용)
+    downloadAllImagesComplex: {
+        func: async function() {
+            // JSZip 로드 확인 및 로딩
+            if (!window.JSZip) {
+                const script = document.createElement('script');
+                script.src = chrome.runtime.getURL('jszip.min.js');
+                await new Promise((resolve, reject) => {
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            // 모든 이미지 수집 (iframe, background-image 포함)
+            function getAllImages() {
+                const images = [];
+                const urls = new Set();
+
+                function collect(doc) {
+                    try {
+                        // img 태그 수집
+                        Array.from(doc.getElementsByTagName('img')).forEach(img => {
+                            if (img.src && !urls.has(img.src)) {
+                                images.push(img);
+                                urls.add(img.src);
+                            }
+                        });
+
+                        // background-image 수집
+                        Array.from(doc.getElementsByTagName('*')).forEach(el => {
+                            try {
+                                const bg = getComputedStyle(el).backgroundImage;
+                                if (bg && bg !== 'none') {
+                                    const matches = bg.match(/url\(['"]?([^'"]+)['"]?\)/g);
+                                    if (matches) {
+                                        matches.forEach(m => {
+                                            const url = m.replace(/url\(['"]?([^'"]+)['"]?\)/, '$1');
+                                            if (url && !urls.has(url)) {
+                                                const vImg = document.createElement('img');
+                                                vImg.src = url;
+                                                images.push(vImg);
+                                                urls.add(url);
+                                            }
+                                        });
+                                    }
+                                }
+                            } catch (e) {}
+                        });
+
+                        // iframe 내부 탐색
+                        if (doc === document) {
+                            Array.from(doc.getElementsByTagName('iframe')).forEach(iframe => {
+                                try {
+                                    if (iframe.contentDocument) {
+                                        collect(iframe.contentDocument);
+                                    }
+                                } catch (e) {}
+                            });
+                        }
+                    } catch (e) {}
+                }
+
+                collect(document);
+                console.log(`총 ${images.length}개 이미지 발견`);
+                return images;
+            }
+
+            // 이미지 다운로드 함수
+            async function downloadImg(img, i) {
+                let src = img.src;
+                if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+                    src = new URL(src, location.href).href;
+                }
+                
+                if (!src || src.startsWith('data:image/svg') || src.length < 10) {
+                    console.log(`이미지 ${i+1} 스킵: 유효하지 않은 URL`);
+                    return null;
+                }
+
+                try {
+                    let blob;
+                    
+                    // 여러 방법으로 이미지 다운로드 시도
+                    try {
+                        console.log(`이미지 ${i+1} CORS 모드로 시도: ${src}`);
+                        const res = await fetch(src, { mode: 'cors' });
+                        if (res.ok) {
+                            blob = await res.blob();
+                            console.log(`이미지 ${i+1} CORS 성공`);
+                        } else {
+                            throw new Error('CORS 실패');
+                        }
+                    } catch (e1) {
+                        try {
+                            console.log(`이미지 ${i+1} no-cors 모드로 시도`);
+                            const res = await fetch(src, { mode: 'no-cors' });
+                            blob = await res.blob();
+                            // no-cors의 경우 blob이 opaque일 수 있음
+                            if (blob.size === 0) {
+                                throw new Error('no-cors opaque response');
+                            }
+                            console.log(`이미지 ${i+1} no-cors 성공`);
+                        } catch (e2) {
+                            // Canvas를 사용한 이미지 다운로드
+                            console.log(`이미지 ${i+1} Canvas 방법으로 시도`);
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const tempImg = new Image();
+                            tempImg.crossOrigin = 'anonymous';
+                            
+                            await new Promise((resolve, reject) => {
+                                const timeout = setTimeout(() => {
+                                    reject(new Error('이미지 로드 타임아웃'));
+                                }, 5000);
+                                
+                                tempImg.onload = () => {
+                                    clearTimeout(timeout);
+                                    canvas.width = tempImg.naturalWidth || tempImg.width;
+                                    canvas.height = tempImg.naturalHeight || tempImg.height;
+                                    ctx.drawImage(tempImg, 0, 0);
+                                    canvas.toBlob(b => {
+                                        if (b) {
+                                            blob = b;
+                                            console.log(`이미지 ${i+1} Canvas 성공`);
+                                            resolve();
+                                        } else {
+                                            reject(new Error('Canvas toBlob 실패'));
+                                        }
+                                    }, 'image/png');
+                                };
+                                tempImg.onerror = () => {
+                                    clearTimeout(timeout);
+                                    reject(new Error('이미지 로드 실패'));
+                                };
+                                tempImg.src = src;
+                            });
+                        }
+                    }
+
+                    if (!blob || blob.size === 0) {
+                        throw new Error('빈 blob');
+                    }
+
+                    const extension = blob.type.split('/')[1] || 'jpg';
+                    console.log(`이미지 ${i+1} 다운로드 성공: ${blob.size} bytes, ${extension}`);
+                    return {
+                        blob,
+                        name: `image_${i + 1}.${extension}`
+                    };
+                } catch (error) {
+                    console.error(`이미지 ${i+1} 다운로드 실패:`, error.message);
+                    return null;
+                }
+            }
+
+            // 메인 실행 함수
+            const imgs = getAllImages();
+            if (!imgs.length) {
+                alert('이미지가 없습니다.');
                 return;
             }
             
-            // 이미지 URL들을 반환하여 background.js에서 처리
-            return { action: 'downloadImages', urls: imageUrls };
+            console.log('이미지 수집 완료:', imgs.length + '개');
+
+            const zip = new JSZip();
+            let count = 0;
+            const total = imgs.length;
+
+            // 상태 표시 UI
+            const status = document.createElement('div');
+            status.style.cssText = 'position:fixed;top:10px;right:10px;background:#333;color:#fff;padding:10px;border-radius:5px;z-index:9999;font-family:sans-serif;';
+            status.textContent = '이미지 수집 중... 0/' + total;
+            document.body.appendChild(status);
+
+            // 모든 이미지 처리
+            const results = await Promise.all(
+                imgs.map(async (img, i) => {
+                    const result = await downloadImg(img, i);
+                    count++;
+                    status.textContent = `수집 완료: ${count}/${total}`;
+                    if (result) {
+                        zip.file(result.name, result.blob);
+                        return result.name;
+                    }
+                    return null;
+                })
+            );
+
+            const validCount = results.filter(r => r).length;
+            console.log('유효한 이미지 수:', validCount);
+            status.textContent = `ZIP 생성 중... (${validCount}개 이미지)`;
+
+            // 유효한 이미지가 없으면 중단
+            if (validCount === 0) {
+                console.log('유효한 이미지가 없습니다');
+                status.textContent = '다운로드 가능한 이미지가 없습니다!';
+                setTimeout(() => document.body.removeChild(status), 3000);
+                alert('다운로드 가능한 이미지가 없습니다. CORS 정책으로 인해 일부 이미지는 다운로드할 수 없습니다.');
+                return;
+            }
+
+            // ZIP 파일 생성 및 다운로드
+            try {
+                console.log('ZIP 생성 시작...');
+                const content = await zip.generateAsync({ type: 'blob' });
+                console.log('ZIP 생성 완료, 크기:', content.size);
+                
+                // Chrome downloads API를 사용하기 위해 base64로 변환
+                const reader = new FileReader();
+                const base64Data = await new Promise((resolve) => {
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(content);
+                });
+
+                console.log('ZIP 생성 완료, base64 변환 완료');
+                status.textContent = `다운로드 완료! (${validCount}개)`;
+                setTimeout(() => document.body.removeChild(status), 3000);
+
+                // background script에서 다운로드 처리하도록 반환
+                return { 
+                    action: 'downloadZip', 
+                    base64Data: base64Data,
+                    filename: `images_${Date.now()}.zip`,
+                    message: `${validCount}개 이미지를 압축하여 다운로드했습니다.`
+                };
+            } catch (error) {
+                console.error('ZIP 생성 중 오류:', error);
+                status.textContent = 'ZIP 생성 실패!';
+                setTimeout(() => document.body.removeChild(status), 3000);
+                throw error;
+            }
         }
     },
     

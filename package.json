@@ -1,0 +1,24 @@
+{
+  "name": "extension_minitool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kwonjinyoung/Extension_miniTool.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kwonjinyoung/Extension_miniTool/issues"
+  },
+  "homepage": "https://github.com/kwonjinyoung/Extension_miniTool#readme",
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}

@@ -83,12 +83,18 @@ async function executeBookmarklet(tabId, bookmarkletName) {
         });
         
         if (response && response.success) {
+            console.log('북마크릿 실행 성공:', response);
             if (response.data) {
                 // 결과 데이터가 있으면 모달에 표시
                 showResultModal(bookmarkletName, response.data);
             }
+            if (response.message) {
+                // 성공 메시지 표시
+                alert(response.message);
+            }
         } else {
             console.error('북마크릿 실행 실패:', response?.error);
+            alert('실행 실패: ' + (response?.error || '알 수 없는 오류'));
         }
     } catch (error) {
         console.error('북마크릿 실행 중 오류:', error);
