@@ -32,10 +32,39 @@ async function executeBookmarklet(tabId, bookmarkletName, params) {
             args: params ? [params] : []
         });
         
-        return result[0]?.result;
+        const scriptResult = result[0]?.result;
+        
+        // 이미지 다운로드 특별 처리
+        if (scriptResult?.action === 'downloadImages') {
+            await downloadImages(scriptResult.urls);
+            return { success: true };
+        }
+        
+        return scriptResult;
     } catch (error) {
         console.error('스크립트 실행 오류:', error);
         throw error;
+    }
+}
+
+// 이미지 다운로드 함수
+async function downloadImages(urls) {
+    for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const filename = `image_${i + 1}_${url.split('/').pop().split('?')[0]}`;
+        
+        try {
+            await chrome.downloads.download({
+                url: url,
+                filename: filename,
+                conflictAction: 'uniquify'
+            });
+            
+            // 각 다운로드 사이에 약간의 지연
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.error(`이미지 다운로드 실패: ${url}`, error);
+        }
     }
 }
 
