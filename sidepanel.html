@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미니 도구 모음</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>미니 도구 모음</h1>
+            <p class="subtitle">유용한 북마크릿 도구들</p>
+        </header>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="도구 검색...">
+        </div>
+
+        <div class="tools-container">
+            <div class="tool-category">
+                <h2>이미지 도구</h2>
+                <div class="tool-list">
+                    <button class="tool-btn" data-tool="show-images-only">
+                        <span class="tool-icon">🖼️</span>
+                        <span class="tool-name">이미지만 보기</span>
+                        <span class="tool-desc">페이지의 모든 이미지만 표시</span>
+                    </button>
+                    <button class="tool-btn" data-tool="download-all-images">
+                        <span class="tool-icon">⬇️</span>
+                        <span class="tool-name">이미지 다운로드</span>
+                        <span class="tool-desc">페이지의 모든 이미지 다운로드</span>
+                    </button>
+                    <button class="tool-btn" data-tool="extract-image-urls">
+                        <span class="tool-icon">🔗</span>
+                        <span class="tool-name">이미지 URL 추출</span>
+                        <span class="tool-desc">모든 이미지 URL 목록 보기</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-category">
+                <h2>텍스트 도구</h2>
+                <div class="tool-list">
+                    <button class="tool-btn" data-tool="regex-search">
+                        <span class="tool-icon">🔍</span>
+                        <span class="tool-name">정규식 검색</span>
+                        <span class="tool-desc">정규식으로 텍스트 검색</span>
+                    </button>
+                    <button class="tool-btn" data-tool="extract-all-links">
+                        <span class="tool-icon">🔗</span>
+                        <span class="tool-name">링크 추출</span>
+                        <span class="tool-desc">페이지의 모든 링크 추출</span>
+                    </button>
+                    <button class="tool-btn" data-tool="copy-all-text">
+                        <span class="tool-icon">📋</span>
+                        <span class="tool-name">텍스트 복사</span>
+                        <span class="tool-desc">페이지의 모든 텍스트 복사</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-category">
+                <h2>페이지 도구</h2>
+                <div class="tool-list">
+                    <button class="tool-btn" data-tool="remove-ads">
+                        <span class="tool-icon">🚫</span>
+                        <span class="tool-name">광고 제거</span>
+                        <span class="tool-desc">페이지의 광고 요소 제거</span>
+                    </button>
+                    <button class="tool-btn" data-tool="print-friendly">
+                        <span class="tool-icon">🖨️</span>
+                        <span class="tool-name">인쇄 친화적 보기</span>
+                        <span class="tool-desc">불필요한 요소 제거</span>
+                    </button>
+                    <button class="tool-btn" data-tool="dark-mode">
+                        <span class="tool-icon">🌙</span>
+                        <span class="tool-name">다크 모드</span>
+                        <span class="tool-desc">페이지를 다크 모드로 전환</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-category">
+                <h2>개발자 도구</h2>
+                <div class="tool-list">
+                    <button class="tool-btn" data-tool="show-cookies">
+                        <span class="tool-icon">🍪</span>
+                        <span class="tool-name">쿠키 보기</span>
+                        <span class="tool-desc">현재 페이지의 쿠키 확인</span>
+                    </button>
+                    <button class="tool-btn" data-tool="view-source">
+                        <span class="tool-icon">📜</span>
+                        <span class="tool-name">소스 보기</span>
+                        <span class="tool-desc">페이지 소스 코드 보기</span>
+                    </button>
+                    <button class="tool-btn" data-tool="console-log">
+                        <span class="tool-icon">💻</span>
+                        <span class="tool-name">콘솔 로그</span>
+                        <span class="tool-desc">페이지 정보 콘솔에 출력</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3 id="modalTitle"></h3>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>

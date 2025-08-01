@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>아이콘 생성기</title>
+</head>
+<body>
+    <h1>익스텐션 아이콘 생성</h1>
+    <p>아래 캔버스를 마우스 오른쪽 버튼으로 클릭하여 이미지로 저장하세요.</p>
+    
+    <h2>icon-16.png</h2>
+    <canvas id="icon16" width="16" height="16"></canvas>
+    
+    <h2>icon-48.png</h2>
+    <canvas id="icon48" width="48" height="48"></canvas>
+    
+    <h2>icon-128.png</h2>
+    <canvas id="icon128" width="128" height="128"></canvas>
+    
+    <script>
+        function drawIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // 배경
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(0, 0, size, size);
+            
+            // 테두리
+            ctx.strokeStyle = '#2980b9';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, size-2, size-2);
+            
+            // 텍스트
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.5}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('T', size/2, size/2);
+        }
+        
+        drawIcon('icon16', 16);
+        drawIcon('icon48', 48);
+        drawIcon('icon128', 128);
+    </script>
+</body>
+</html>
