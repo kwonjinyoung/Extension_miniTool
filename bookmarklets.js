@@ -85,20 +85,154 @@ export const bookmarklets = {
     // 모든 이미지 다운로드
     downloadAllImages: {
         func: function() {
-            const images = document.querySelectorAll('img');
-            const imageUrls = Array.from(images).map(img => img.src).filter(src => src);
+            if(!window.JSZip){
+                const s=document.createElement('script');
+                s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                s.onload=()=>start();
+                document.head.appendChild(s);
+            } else {
+                start();
+            }
             
-            imageUrls.forEach((url, index) => {
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `image_${index + 1}`;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            });
+            function getAllImages(){
+                const f=document.getElementById('mainFrame');
+                let d=f&&f.contentDocument?f.contentDocument:document;
+                const images=[];
+                const urls=new Set();
+                
+                function collect(doc){
+                    try{
+                        Array.from(doc.getElementsByTagName('img')).forEach(img=>{
+                            if(img.src&&!urls.has(img.src)){
+                                images.push(img);
+                                urls.add(img.src);
+                            }
+                        });
+                        
+                        Array.from(doc.getElementsByTagName('*')).forEach(el=>{
+                            try{
+                                const bg=getComputedStyle(el).backgroundImage;
+                                if(bg&&bg!=='none'){
+                                    const matches=bg.match(/url\(['"]?([^'"]+)['"]?\)/g);
+                                    if(matches){
+                                        matches.forEach(m=>{
+                                            const url=m.replace(/url\(['"]?([^'"]+)['"]?\)/,'$1');
+                                            if(url&&!urls.has(url)){
+                                                const vImg=doc.createElement('img');
+                                                vImg.src=url;
+                                                images.push(vImg);
+                                                urls.add(url);
+                                            }
+                                        });
+                                    }
+                                }
+                            }catch(e){}
+                        });
+                        
+                        if(doc===document){
+                            Array.from(doc.getElementsByTagName('iframe')).forEach(iframe=>{
+                                if(iframe.id!=='mainFrame'&&iframe.name!=='mainFrame'){
+                                    try{
+                                        if(iframe.contentDocument) collect(iframe.contentDocument);
+                                    }catch(e){}
+                                }
+                            });
+                            
+                            Array.from(doc.getElementsByTagName('frame')).forEach(frame=>{
+                                try{
+                                    if(frame.contentDocument) collect(frame.contentDocument);
+                                }catch(e){}
+                            });
+                        }
+                    }catch(e){}
+                }
+                
+                collect(d);
+                console.log(`총 ${images.length}개 이미지 발견`);
+                return images;
+            }
             
-            alert(`${imageUrls.length}개의 이미지 다운로드를 시작했습니다.`);
+            async function downloadImg(img,i){
+                let src=img.src;
+                if(src&&!src.startsWith('http')&&!src.startsWith('data:'))
+                    src=new URL(src,location.href).href;
+                if(!src||src.startsWith('data:image/svg')||src.length<10)
+                    return null;
+                    
+                try{
+                    let blob;
+                    try{
+                        const res=await fetch(src,{mode:'cors'});
+                        if(res.ok) blob=await res.blob();
+                        else throw new Error();
+                    }catch{
+                        try{
+                            const res=await fetch(src,{mode:'no-cors'});
+                            blob=await res.blob();
+                        }catch{
+                            const canvas=document.createElement('canvas');
+                            const ctx=canvas.getContext('2d');
+                            const tempImg=new Image();
+                            tempImg.crossOrigin='anonymous';
+                            await new Promise((resolve,reject)=>{
+                                tempImg.onload=()=>{
+                                    canvas.width=tempImg.naturalWidth||tempImg.width;
+                                    canvas.height=tempImg.naturalHeight||tempImg.height;
+                                    ctx.drawImage(tempImg,0,0);
+                                    canvas.toBlob(b=>b?resolve(blob=b):reject(),'image/png');
+                                };
+                                tempImg.onerror=reject;
+                                tempImg.src=src;
+                            });
+                        }
+                    }
+                    
+                    if(!blob||blob.size===0) throw new Error();
+                    return {blob,name:`image_${i+1}.${blob.type.split('/')[1]||'jpg'}`};
+                }catch{
+                    return null;
+                }
+            }
+            
+            function start(){
+                const imgs=getAllImages();
+                if(!imgs.length){
+                    alert('이미지가 없습니다.');
+                    return;
+                }
+                
+                const zip=new JSZip();
+                let count=0;
+                const total=imgs.length;
+                const status=document.createElement('div');
+                status.style.cssText='position:fixed;top:10px;right:10px;background:#333;color:#fff;padding:10px;border-radius:5px;z-index:9999;font-family:sans-serif;';
+                status.textContent='이미지 수집 중... 0/'+total;
+                document.body.appendChild(status);
+                
+                Promise.all(imgs.map(async(img,i)=>{
+                    const result=await downloadImg(img,i);
+                    count++;
+                    status.textContent=`수집 완료: ${count}/${total}`;
+                    if(result){
+                        zip.file(result.name,result.blob);
+                        return result.name;
+                    }
+                    return null;
+                })).then(results=>{
+                    const validCount=results.filter(r=>r).length;
+                    status.textContent=`ZIP 생성 중... (${validCount}개 이미지)`;
+                    zip.generateAsync({type:'blob'}).then(content=>{
+                        const url=URL.createObjectURL(content);
+                        const a=document.createElement('a');
+                        a.href=url;
+                        a.download=`images_${Date.now()}.zip`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        status.textContent=`다운로드 완료! (${validCount}개)`;
+                        setTimeout(()=>document.body.removeChild(status),3000);
+                    });
+                });
+            }
         }
     },
     
