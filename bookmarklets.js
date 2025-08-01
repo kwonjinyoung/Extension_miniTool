@@ -85,6 +85,46 @@ export const bookmarklets = {
     // 모든 이미지 다운로드
     downloadAllImages: {
         func: function() {
+            const start = () => {
+                const imgs=getAllImages();
+                if(!imgs.length){
+                    alert('이미지가 없습니다.');
+                    return;
+                }
+                
+                const zip=new JSZip();
+                let count=0;
+                const total=imgs.length;
+                const status=document.createElement('div');
+                status.style.cssText='position:fixed;top:10px;right:10px;background:#333;color:#fff;padding:10px;border-radius:5px;z-index:9999;font-family:sans-serif;';
+                status.textContent='이미지 수집 중... 0/'+total;
+                document.body.appendChild(status);
+                
+                Promise.all(imgs.map(async(img,i)=>{
+                    const result=await downloadImg(img,i);
+                    count++;
+                    status.textContent=`수집 완료: ${count}/${total}`;
+                    if(result){
+                        zip.file(result.name,result.blob);
+                        return result.name;
+                    }
+                    return null;
+                })).then(results=>{
+                    const validCount=results.filter(r=>r).length;
+                    status.textContent=`ZIP 생성 중... (${validCount}개 이미지)`;
+                    zip.generateAsync({type:'blob'}).then(content=>{
+                        const url=URL.createObjectURL(content);
+                        const a=document.createElement('a');
+                        a.href=url;
+                        a.download=`images_${Date.now()}.zip`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        status.textContent=`다운로드 완료! (${validCount}개)`;
+                        setTimeout(()=>document.body.removeChild(status),3000);
+                    });
+                });
+            };
+            
             if(!window.JSZip){
                 const s=document.createElement('script');
                 s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
@@ -194,45 +234,6 @@ export const bookmarklets = {
                 }
             }
             
-            function start(){
-                const imgs=getAllImages();
-                if(!imgs.length){
-                    alert('이미지가 없습니다.');
-                    return;
-                }
-                
-                const zip=new JSZip();
-                let count=0;
-                const total=imgs.length;
-                const status=document.createElement('div');
-                status.style.cssText='position:fixed;top:10px;right:10px;background:#333;color:#fff;padding:10px;border-radius:5px;z-index:9999;font-family:sans-serif;';
-                status.textContent='이미지 수집 중... 0/'+total;
-                document.body.appendChild(status);
-                
-                Promise.all(imgs.map(async(img,i)=>{
-                    const result=await downloadImg(img,i);
-                    count++;
-                    status.textContent=`수집 완료: ${count}/${total}`;
-                    if(result){
-                        zip.file(result.name,result.blob);
-                        return result.name;
-                    }
-                    return null;
-                })).then(results=>{
-                    const validCount=results.filter(r=>r).length;
-                    status.textContent=`ZIP 생성 중... (${validCount}개 이미지)`;
-                    zip.generateAsync({type:'blob'}).then(content=>{
-                        const url=URL.createObjectURL(content);
-                        const a=document.createElement('a');
-                        a.href=url;
-                        a.download=`images_${Date.now()}.zip`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                        status.textContent=`다운로드 완료! (${validCount}개)`;
-                        setTimeout(()=>document.body.removeChild(status),3000);
-                    });
-                });
-            }
         }
     },
     
