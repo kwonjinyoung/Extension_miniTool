@@ -70,9 +70,6 @@ async function handleToolClick(event) {
         case 'remove-emojis':
             executeBookmarklet(tab.id, 'removeEmojis');
             break;
-        case 'dark-mode':
-            executeBookmarklet(tab.id, 'darkMode');
-            break;
         case 'show-toc':
             executeBookmarklet(tab.id, 'showTableOfContents');
             break;

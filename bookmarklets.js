@@ -606,46 +606,6 @@ export const bookmarklets = {
         }
     },
     
-    // 다크 모드
-    darkMode: {
-        func: function() {
-            const darkModeCSS = `
-                * {
-                    background-color: #1a1a1a !important;
-                    color: #e0e0e0 !important;
-                    border-color: #333 !important;
-                }
-                a {
-                    color: #6db3f2 !important;
-                }
-                img {
-                    opacity: 0.8 !important;
-                }
-                input, textarea, select {
-                    background-color: #2a2a2a !important;
-                    color: #e0e0e0 !important;
-                }
-                code, pre {
-                    background-color: #2a2a2a !important;
-                    color: #e0e0e0 !important;
-                }
-            `;
-            
-            const style = document.createElement('style');
-            style.textContent = darkModeCSS;
-            style.id = 'dark-mode-style';
-            
-            const existingStyle = document.getElementById('dark-mode-style');
-            if (existingStyle) {
-                existingStyle.remove();
-                alert('다크 모드가 해제되었습니다.');
-            } else {
-                document.head.appendChild(style);
-                alert('다크 모드가 적용되었습니다.');
-            }
-        }
-    },
-    
     // 드래깅 허용
     enableDrag: {
         func: function() {
