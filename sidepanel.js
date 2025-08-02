@@ -1,9 +1,30 @@
+// 고정된 도구 관리
+const pinnedTools = new Set(JSON.parse(localStorage.getItem('pinnedTools') || '[]'));
+
 // 도구 버튼 클릭 이벤트 리스너
 document.addEventListener('DOMContentLoaded', function() {
+    // 저장된 고정 도구 로드 및 표시
+    loadPinnedTools();
+    
     // 모든 도구 버튼에 이벤트 리스너 추가
     const toolButtons = document.querySelectorAll('.tool-btn');
     toolButtons.forEach(button => {
         button.addEventListener('click', handleToolClick);
+        
+        // 고정핀 클릭 이벤트 추가
+        const pinIndicator = button.querySelector('.pin-indicator');
+        if (pinIndicator) {
+            pinIndicator.addEventListener('click', (e) => {
+                e.stopPropagation();
+                togglePin(button);
+            });
+        }
+        
+        // 초기 고정 상태 설정
+        const toolName = button.getAttribute('data-tool');
+        if (pinnedTools.has(toolName)) {
+            button.classList.add('pinned');
+        }
     });
 
     // 검색 기능
@@ -40,35 +61,38 @@ async function handleToolClick(event) {
         case 'download-all-images':
             executeBookmarklet(tab.id, 'downloadAllImages');
             break;
-        case 'extract-image-urls':
-            executeBookmarklet(tab.id, 'extractImageUrls');
+        case 'hide-images':
+            executeBookmarklet(tab.id, 'hideImages');
             break;
         case 'regex-search':
             showRegexSearchModal();
             break;
-        case 'extract-all-links':
-            executeBookmarklet(tab.id, 'extractAllLinks');
-            break;
-        case 'copy-all-text':
-            executeBookmarklet(tab.id, 'copyAllText');
-            break;
-        case 'remove-ads':
-            executeBookmarklet(tab.id, 'removeAds');
-            break;
-        case 'print-friendly':
-            executeBookmarklet(tab.id, 'printFriendly');
+        case 'remove-emojis':
+            executeBookmarklet(tab.id, 'removeEmojis');
             break;
         case 'dark-mode':
             executeBookmarklet(tab.id, 'darkMode');
             break;
-        case 'show-cookies':
-            executeBookmarklet(tab.id, 'showCookies');
+        case 'show-toc':
+            executeBookmarklet(tab.id, 'showTableOfContents');
             break;
-        case 'view-source':
-            executeBookmarklet(tab.id, 'viewSource');
+        case 'enable-drag':
+            executeBookmarklet(tab.id, 'enableDrag');
             break;
-        case 'console-log':
-            executeBookmarklet(tab.id, 'consoleLog');
+        case 'highlight-words':
+            executeBookmarklet(tab.id, 'highlightWords');
+            break;
+        case 'highlight-words-blue':
+            executeBookmarklet(tab.id, 'highlightWordsBlue');
+            break;
+        case 'highlight-words-green':
+            executeBookmarklet(tab.id, 'highlightWordsGreen');
+            break;
+        case 'highlight-words-purple':
+            executeBookmarklet(tab.id, 'highlightWordsPurple');
+            break;
+        case 'highlight-words-rainbow':
+            executeBookmarklet(tab.id, 'highlightWordsRainbow');
             break;
     }
 }
@@ -109,9 +133,8 @@ function handleSearch(event) {
     
     toolButtons.forEach(button => {
         const toolName = button.querySelector('.tool-name').textContent.toLowerCase();
-        const toolDesc = button.querySelector('.tool-desc').textContent.toLowerCase();
         
-        if (toolName.includes(searchTerm) || toolDesc.includes(searchTerm)) {
+        if (toolName.includes(searchTerm)) {
             button.classList.remove('hidden');
         } else {
             button.classList.add('hidden');
@@ -127,6 +150,27 @@ function handleSearch(event) {
             category.classList.remove('empty');
         }
     });
+    
+    // 고정된 도구 섹션에서도 검색
+    const pinnedButtons = document.querySelectorAll('#pinnedToolList .tool-btn');
+    pinnedButtons.forEach(button => {
+        const toolName = button.querySelector('.tool-name').textContent.toLowerCase();
+        
+        if (toolName.includes(searchTerm)) {
+            button.classList.remove('hidden');
+        } else {
+            button.classList.add('hidden');
+        }
+    });
+    
+    // 고정된 도구 섹션 표시/숨기기
+    const pinnedSection = document.getElementById('pinnedTools');
+    const visiblePinnedButtons = pinnedSection.querySelectorAll('.tool-btn:not(.hidden)');
+    if (visiblePinnedButtons.length === 0 && searchTerm) {
+        pinnedSection.style.display = 'none';
+    } else if (pinnedTools.size > 0) {
+        pinnedSection.style.display = 'block';
+    }
 }
 
 // 정규식 검색 모달 표시
@@ -173,9 +217,6 @@ function showResultModal(title, data) {
 // 모달 제목 가져오기
 function getModalTitle(bookmarkletName) {
     const titles = {
-        'extractImageUrls': '이미지 URL 목록',
-        'extractAllLinks': '링크 목록',
-        'showCookies': '쿠키 정보',
         'regexSearch': '정규식 검색 결과'
     };
     
@@ -204,4 +245,69 @@ function formatResultData(bookmarkletName, data) {
     } else {
         return `<div>${data}</div>`;
     }
+}
+
+// 고정핀 토글 함수
+function togglePin(button) {
+    const toolName = button.getAttribute('data-tool');
+    
+    if (pinnedTools.has(toolName)) {
+        pinnedTools.delete(toolName);
+        button.classList.remove('pinned');
+    } else {
+        pinnedTools.add(toolName);
+        button.classList.add('pinned');
+    }
+    
+    // localStorage에 저장
+    localStorage.setItem('pinnedTools', JSON.stringify([...pinnedTools]));
+    
+    // 고정된 도구 섹션 업데이트
+    updatePinnedTools();
+}
+
+// 고정된 도구 로드 함수
+function loadPinnedTools() {
+    updatePinnedTools();
+}
+
+// 고정된 도구 섹션 업데이트
+function updatePinnedTools() {
+    const pinnedSection = document.getElementById('pinnedTools');
+    const pinnedList = document.getElementById('pinnedToolList');
+    
+    // 기존 고정 도구 목록 비우기
+    pinnedList.innerHTML = '';
+    
+    if (pinnedTools.size === 0) {
+        pinnedSection.style.display = 'none';
+        return;
+    }
+    
+    pinnedSection.style.display = 'block';
+    
+    // 고정된 도구들을 복사하여 고정 섹션에 추가
+    pinnedTools.forEach(toolName => {
+        const originalButton = document.querySelector(`[data-tool="${toolName}"]`);
+        if (originalButton) {
+            const clonedButton = originalButton.cloneNode(true);
+            clonedButton.classList.add('pinned-in-section');
+            
+            // 클론된 버튼의 이벤트 리스너 추가
+            clonedButton.addEventListener('click', handleToolClick);
+            
+            // 고정핀 클릭 이벤트
+            const pinIndicator = clonedButton.querySelector('.pin-indicator');
+            if (pinIndicator) {
+                pinIndicator.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    togglePin(clonedButton);
+                    // 원본 버튼의 고정 상태도 업데이트
+                    originalButton.classList.remove('pinned');
+                });
+            }
+            
+            pinnedList.appendChild(clonedButton);
+        }
+    });
 }

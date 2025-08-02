@@ -6,36 +6,134 @@
     <title>미니 도구 모음</title>
     <link rel="stylesheet" href="sidepanel.css">
     <script src="jszip.min.js"></script>
+    <style>
+        @keyframes regex-blink {
+            0%, 100% {
+                background-color: yellow;
+                color: red;
+            }
+            50% {
+                background-color: red;
+                color: yellow;
+            }
+        }
+        .highlight-demo {
+            animation: regex-blink 1s infinite;
+            font-weight: bold;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        
+        /* 파란색 애니메이션 */
+        @keyframes regex-blink-blue {
+            0%, 100% {
+                background-color: #00BFFF;
+                color: white;
+            }
+            50% {
+                background-color: #0000FF;
+                color: #00FFFF;
+            }
+        }
+        .highlight-demo-blue {
+            animation: regex-blink-blue 1s infinite;
+            font-weight: bold;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        
+        /* 초록색 애니메이션 */
+        @keyframes regex-blink-green {
+            0%, 100% {
+                background-color: #00FF00;
+                color: #006400;
+            }
+            50% {
+                background-color: #228B22;
+                color: #90EE90;
+            }
+        }
+        .highlight-demo-green {
+            animation: regex-blink-green 1s infinite;
+            font-weight: bold;
+            padding: 0 2px;
+            border-radius: 2px;
+            text-shadow: 0 0 2px rgba(0,255,0,0.5);
+        }
+        
+        /* 보라색 애니메이션 */
+        @keyframes regex-blink-purple {
+            0%, 100% {
+                background-color: #FF00FF;
+                color: white;
+                box-shadow: 0 0 10px #FF00FF;
+            }
+            50% {
+                background-color: #8B008B;
+                color: #DDA0DD;
+                box-shadow: 0 0 20px #8B008B;
+            }
+        }
+        .highlight-demo-purple {
+            animation: regex-blink-purple 1s infinite;
+            font-weight: bold;
+            padding: 0 4px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        /* 무지개색 애니메이션 */
+        @keyframes regex-blink-rainbow {
+            0% { background-color: #FF0000; color: white; }
+            14% { background-color: #FF7F00; color: black; }
+            28% { background-color: #FFFF00; color: black; }
+            42% { background-color: #00FF00; color: black; }
+            57% { background-color: #0000FF; color: white; }
+            71% { background-color: #4B0082; color: white; }
+            85% { background-color: #9400D3; color: white; }
+            100% { background-color: #FF0000; color: white; }
+        }
+        .highlight-demo-rainbow {
+            animation: regex-blink-rainbow 2s infinite;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: inline-block;
+            transform: scale(1.1);
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>미니 도구 모음</h1>
-            <p class="subtitle">유용한 북마크릿 도구들</p>
+            <input type="text" id="searchInput" placeholder="도구 검색...">
         </header>
 
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="도구 검색...">
+        <!-- 고정된 도구 섹션 -->
+        <div class="pinned-tools" id="pinnedTools" style="display: none;">
+            <h2><span class="pin-icon">📌</span> 고정된 도구</h2>
+            <div class="pinned-tool-list" id="pinnedToolList"></div>
         </div>
 
         <div class="tools-container">
             <div class="tool-category">
                 <h2>이미지 도구</h2>
                 <div class="tool-list">
-                    <button class="tool-btn" data-tool="show-images-only">
+                    <button class="tool-btn" data-tool="show-images-only" title="페이지의 모든 이미지만 별도 창에 표시합니다">
+                        <span class="pin-indicator">📌</span>
                         <span class="tool-icon">🖼️</span>
                         <span class="tool-name">이미지만 보기</span>
-                        <span class="tool-desc">페이지의 모든 이미지만 표시</span>
                     </button>
-                    <button class="tool-btn" data-tool="download-all-images">
+                    <button class="tool-btn" data-tool="download-all-images" title="페이지의 모든 이미지를 ZIP 파일로 다운로드합니다">
+                        <span class="pin-indicator">📌</span>
                         <span class="tool-icon">⬇️</span>
                         <span class="tool-name">이미지 다운로드</span>
-                        <span class="tool-desc">페이지의 모든 이미지 다운로드</span>
                     </button>
-                    <button class="tool-btn" data-tool="extract-image-urls">
-                        <span class="tool-icon">🔗</span>
-                        <span class="tool-name">이미지 URL 추출</span>
-                        <span class="tool-desc">모든 이미지 URL 목록 보기</span>
+                    <button class="tool-btn" data-tool="hide-images" title="페이지의 모든 이미지를 숨깁니다">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🚫</span>
+                        <span class="tool-name">이미지 숨기기</span>
                     </button>
                 </div>
             </div>
@@ -43,20 +141,45 @@
             <div class="tool-category">
                 <h2>텍스트 도구</h2>
                 <div class="tool-list">
-                    <button class="tool-btn" data-tool="regex-search">
+                    <button class="tool-btn" data-tool="regex-search" title="정규표현식을 사용하여 페이지 내 텍스트를 검색합니다">
+                        <span class="pin-indicator">📌</span>
                         <span class="tool-icon">🔍</span>
                         <span class="tool-name">정규식 검색</span>
-                        <span class="tool-desc">정규식으로 텍스트 검색</span>
                     </button>
-                    <button class="tool-btn" data-tool="extract-all-links">
-                        <span class="tool-icon">🔗</span>
-                        <span class="tool-name">링크 추출</span>
-                        <span class="tool-desc">페이지의 모든 링크 추출</span>
+                    <button class="tool-btn" data-tool="remove-emojis" title="페이지의 모든 이모지를 제거합니다">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🙅</span>
+                        <span class="tool-name">이모지 제거</span>
                     </button>
-                    <button class="tool-btn" data-tool="copy-all-text">
-                        <span class="tool-icon">📋</span>
-                        <span class="tool-name">텍스트 복사</span>
-                        <span class="tool-desc">페이지의 모든 텍스트 복사</span>
+                    <button class="tool-btn" data-tool="enable-drag" title="드래그가 제한된 텍스트를 선택할 수 있게 합니다">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">✋</span>
+                        <span class="tool-name">드래깅 허용</span>
+                    </button>
+                    <button class="tool-btn" data-tool="highlight-words" title="정규식으로 단어를 찾아 강조 표시합니다">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🔦</span>
+                        <span class="tool-name highlight-demo">문자 찾기 - 단어강조 표시</span>
+                    </button>
+                    <button class="tool-btn" data-tool="highlight-words-blue" title="정규식으로 단어를 찾아 파란색으로 강조">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🔵</span>
+                        <span class="tool-name highlight-demo-blue">문자 찾기 - 파란색</span>
+                    </button>
+                    <button class="tool-btn" data-tool="highlight-words-green" title="정규식으로 단어를 찾아 초록색으로 강조">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🟢</span>
+                        <span class="tool-name highlight-demo-green">문자 찾기 - 초록색</span>
+                    </button>
+                    <button class="tool-btn" data-tool="highlight-words-purple" title="정규식으로 단어를 찾아 보라색으로 강조">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🟣</span>
+                        <span class="tool-name highlight-demo-purple">문자 찾기 - 보라색</span>
+                    </button>
+                    <button class="tool-btn" data-tool="highlight-words-rainbow" title="정규식으로 단어를 찾아 무지개색으로 강조">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">🌈</span>
+                        <span class="tool-name highlight-demo-rainbow">문자 찾기 - 무지개색</span>
                     </button>
                 </div>
             </div>
@@ -64,44 +187,19 @@
             <div class="tool-category">
                 <h2>페이지 도구</h2>
                 <div class="tool-list">
-                    <button class="tool-btn" data-tool="remove-ads">
-                        <span class="tool-icon">🚫</span>
-                        <span class="tool-name">광고 제거</span>
-                        <span class="tool-desc">페이지의 광고 요소 제거</span>
-                    </button>
-                    <button class="tool-btn" data-tool="print-friendly">
-                        <span class="tool-icon">🖨️</span>
-                        <span class="tool-name">인쇄 친화적 보기</span>
-                        <span class="tool-desc">불필요한 요소 제거</span>
-                    </button>
-                    <button class="tool-btn" data-tool="dark-mode">
+                    <button class="tool-btn" data-tool="dark-mode" title="페이지를 다크 모드로 전환합니다">
+                        <span class="pin-indicator">📌</span>
                         <span class="tool-icon">🌙</span>
                         <span class="tool-name">다크 모드</span>
-                        <span class="tool-desc">페이지를 다크 모드로 전환</span>
+                    </button>
+                    <button class="tool-btn" data-tool="show-toc" title="페이지의 제목들로 목차를 생성합니다">
+                        <span class="pin-indicator">📌</span>
+                        <span class="tool-icon">📑</span>
+                        <span class="tool-name">목차 보기</span>
                     </button>
                 </div>
             </div>
 
-            <div class="tool-category">
-                <h2>개발자 도구</h2>
-                <div class="tool-list">
-                    <button class="tool-btn" data-tool="show-cookies">
-                        <span class="tool-icon">🍪</span>
-                        <span class="tool-name">쿠키 보기</span>
-                        <span class="tool-desc">현재 페이지의 쿠키 확인</span>
-                    </button>
-                    <button class="tool-btn" data-tool="view-source">
-                        <span class="tool-icon">📜</span>
-                        <span class="tool-name">소스 보기</span>
-                        <span class="tool-desc">페이지 소스 코드 보기</span>
-                    </button>
-                    <button class="tool-btn" data-tool="console-log">
-                        <span class="tool-icon">💻</span>
-                        <span class="tool-name">콘솔 로그</span>
-                        <span class="tool-desc">페이지 정보 콘솔에 출력</span>
-                    </button>
-                </div>
-            </div>
         </div>
 
         <div id="modal" class="modal">

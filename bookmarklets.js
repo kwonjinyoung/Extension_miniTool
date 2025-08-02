@@ -380,15 +380,6 @@ export const bookmarklets = {
         }
     },
     
-    // 이미지 URL 추출
-    extractImageUrls: {
-        func: function() {
-            const images = document.querySelectorAll('img');
-            const imageUrls = Array.from(images).map(img => img.src).filter(src => src);
-            return imageUrls;
-        }
-    },
-    
     // 정규식 검색
     regexSearch: {
         func: function(params) {
@@ -413,101 +404,205 @@ export const bookmarklets = {
         }
     },
     
-    // 모든 링크 추출
-    extractAllLinks: {
+    // 이미지 숨기기
+    hideImages: {
         func: function() {
-            const links = document.querySelectorAll('a[href]');
-            const linkUrls = Array.from(links).map(link => link.href).filter(href => href);
-            return [...new Set(linkUrls)]; // 중복 제거
+            const existingStyle = document.getElementById('hide-images-style');
+            if (existingStyle) {
+                existingStyle.remove();
+                alert('이미지가 다시 표시됩니다.');
+            } else {
+                const style = document.createElement('style');
+                style.id = 'hide-images-style';
+                style.textContent = `
+                    img, picture, svg, video, 
+                    [style*="background-image"], 
+                    [style*="background: url"], 
+                    [style*="background:url"] {
+                        display: none !important;
+                        visibility: hidden !important;
+                    }
+                    * {
+                        background-image: none !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                alert('모든 이미지가 숨겨졌습니다.');
+            }
         }
     },
     
-    // 모든 텍스트 복사
-    copyAllText: {
+    // 이모지 제거
+    removeEmojis: {
         func: function() {
-            const textContent = document.body.innerText;
-            navigator.clipboard.writeText(textContent).then(() => {
-                alert('페이지의 모든 텍스트가 클립보드에 복사되었습니다.');
-            }).catch(err => {
-                alert('텍스트 복사 실패: ' + err.message);
-            });
-        }
-    },
-    
-    // 광고 제거
-    removeAds: {
-        func: function() {
-            const adSelectors = [
-                'iframe',
-                '[class*="ad-"]',
-                '[class*="ads-"]',
-                '[class*="advertisement"]',
-                '[id*="ad-"]',
-                '[id*="ads-"]',
-                '[id*="advertisement"]',
-                '.ad',
-                '.ads',
-                '.advertisement',
-                '.banner',
-                '.popup',
-                '.modal-overlay'
-            ];
+            // 이모지를 감지하는 정규식
+            const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{1FA70}-\u{1FAFF}]/gu;
             
             let removedCount = 0;
-            adSelectors.forEach(selector => {
-                const elements = document.querySelectorAll(selector);
-                elements.forEach(el => {
-                    el.remove();
-                    removedCount++;
-                });
-            });
             
-            alert(`${removedCount}개의 광고 요소를 제거했습니다.`);
+            // 텍스트 노드에서 이모지 제거
+            function removeEmojisFromNode(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const originalText = node.textContent;
+                    const newText = originalText.replace(emojiRegex, (match) => {
+                        removedCount++;
+                        return '';
+                    });
+                    if (originalText !== newText) {
+                        node.textContent = newText;
+                    }
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // input, textarea 등의 값에서도 제거
+                    if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA') {
+                        const originalValue = node.value;
+                        const newValue = originalValue.replace(emojiRegex, (match) => {
+                            removedCount++;
+                            return '';
+                        });
+                        if (originalValue !== newValue) {
+                            node.value = newValue;
+                        }
+                    }
+                    
+                    // 자식 노드 순회
+                    for (let child of node.childNodes) {
+                        removeEmojisFromNode(child);
+                    }
+                }
+            }
+            
+            removeEmojisFromNode(document.body);
+            alert(`${removedCount}개의 이모지를 제거했습니다.`);
         }
     },
     
-    // 인쇄 친화적 보기
-    printFriendly: {
+    // 목차 보기
+    showTableOfContents: {
         func: function() {
-            // 불필요한 요소 제거
-            const unnecessarySelectors = [
-                'nav',
-                'header',
-                'footer',
-                'aside',
-                '.sidebar',
-                '.navigation',
-                '.menu',
-                '.comments',
-                '.social-share',
-                'iframe',
-                'video',
-                '.advertisement'
-            ];
+            // 기존 목차가 있으면 제거
+            if (document.getElementById('auto-toc-container')) {
+                document.getElementById('auto-toc-container').remove();
+                return;
+            }
             
-            unnecessarySelectors.forEach(selector => {
-                const elements = document.querySelectorAll(selector);
-                elements.forEach(el => el.style.display = 'none');
+            // 모든 헤딩 요소 수집 (iframe 포함)
+            function getAllHeadings() {
+                let allHeadings = [];
+                allHeadings.push(...document.querySelectorAll('h1,h2,h3,h4,h5,h6'));
+                
+                const iframes = document.querySelectorAll('iframe');
+                iframes.forEach(iframe => {
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            const iframeHeadings = iframeDoc.querySelectorAll('h1,h2,h3,h4,h5,h6');
+                            iframeHeadings.forEach(heading => {
+                                heading._isFromIframe = true;
+                                heading._iframeSource = iframe;
+                            });
+                            allHeadings.push(...iframeHeadings);
+                        }
+                    } catch (e) {
+                        console.log('iframe 접근 불가 (Cross-Origin):', iframe.src);
+                    }
+                });
+                
+                return allHeadings;
+            }
+            
+            const headings = getAllHeadings();
+            
+            if (headings.length === 0) {
+                alert('이 페이지에는 헤딩 요소가 없습니다.');
+                return;
+            }
+            
+            // 목차 컨테이너 생성
+            const tocContainer = document.createElement('div');
+            tocContainer.id = 'auto-toc-container';
+            tocContainer.style.cssText = 'position:fixed;top:20px;right:20px;width:320px;max-height:70vh;overflow-y:auto;background:rgba(255,255,255,0.95);border:2px solid #4a5568;border-radius:10px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.3);z-index:9999;font-family:Arial,sans-serif;font-size:14px;line-height:1.4;backdrop-filter:blur(10px);';
+            
+            // 목차 제목
+            const tocTitle = document.createElement('h3');
+            tocTitle.textContent = '📑 목차';
+            tocTitle.style.cssText = 'margin:0 0 15px 0;color:#4a5568;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:10px;';
+            tocContainer.appendChild(tocTitle);
+            
+            // 목차 리스트
+            const tocList = document.createElement('ul');
+            tocList.style.cssText = 'list-style:none;padding:0;margin:0;';
+            
+            headings.forEach((heading, index) => {
+                const level = parseInt(heading.tagName.charAt(1));
+                const listItem = document.createElement('li');
+                listItem.style.cssText = `margin:8px 0;padding-left:${(level-1)*15}px;`;
+                
+                const link = document.createElement('a');
+                link.href = '#';
+                const headingText = heading.textContent.trim();
+                const displayText = heading._isFromIframe ? `[iframe] ${headingText}` : headingText;
+                link.textContent = displayText;
+                link.style.cssText = 'color:' + (heading._isFromIframe ? '#805ad5' : '#4a5568') + ';text-decoration:none;font-weight:' + (level <= 2 ? 'bold' : 'normal') + ';font-size:' + (level <= 2 ? '13px' : '12px') + ';display:block;padding:5px 8px;border-radius:5px;transition:all 0.2s ease;';
+                
+                // 호버 효과
+                link.addEventListener('mouseenter', () => {
+                    link.style.backgroundColor = '#e2e8f0';
+                    link.style.color = '#2d3748';
+                });
+                
+                link.addEventListener('mouseleave', () => {
+                    link.style.backgroundColor = 'transparent';
+                    link.style.color = heading._isFromIframe ? '#805ad5' : '#4a5568';
+                });
+                
+                // 클릭 이벤트
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    if (heading._isFromIframe) {
+                        heading._iframeSource.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        setTimeout(() => {
+                            heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 300);
+                    } else {
+                        heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    
+                    // 하이라이트 효과
+                    heading.style.backgroundColor = '#fef5e7';
+                    heading.style.transition = 'background-color 0.5s ease';
+                    setTimeout(() => {
+                        heading.style.backgroundColor = '';
+                    }, 2000);
+                });
+                
+                // ID가 없으면 생성
+                if (!heading.id) {
+                    heading.id = 'auto-toc-heading-' + index;
+                }
+                
+                listItem.appendChild(link);
+                tocList.appendChild(listItem);
             });
             
-            // 메인 콘텐츠 스타일 조정
-            document.body.style.backgroundColor = 'white';
-            document.body.style.color = 'black';
-            document.body.style.fontFamily = 'Georgia, serif';
-            document.body.style.fontSize = '16px';
-            document.body.style.lineHeight = '1.6';
-            document.body.style.maxWidth = '800px';
-            document.body.style.margin = '0 auto';
-            document.body.style.padding = '40px 20px';
+            tocContainer.appendChild(tocList);
             
-            // 링크 스타일
-            const links = document.querySelectorAll('a');
-            links.forEach(link => {
-                link.style.color = '#0066cc';
-                link.style.textDecoration = 'underline';
+            // 닫기 버튼
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.style.cssText = 'position:absolute;top:5px;right:8px;background:none;border:none;font-size:18px;color:#718096;cursor:pointer;padding:5px;border-radius:3px;';
+            closeBtn.addEventListener('click', () => {
+                tocContainer.remove();
+            });
+            closeBtn.addEventListener('mouseenter', () => {
+                closeBtn.style.backgroundColor = '#e2e8f0';
+            });
+            closeBtn.addEventListener('mouseleave', () => {
+                closeBtn.style.backgroundColor = 'transparent';
             });
             
-            alert('인쇄 친화적 보기로 전환되었습니다.');
+            tocContainer.appendChild(closeBtn);
+            document.body.appendChild(tocContainer);
         }
     },
     
@@ -551,65 +646,635 @@ export const bookmarklets = {
         }
     },
     
-    // 쿠키 보기
-    showCookies: {
+    // 드래깅 허용
+    enableDrag: {
         func: function() {
-            const cookies = document.cookie.split(';').map(c => c.trim());
-            const cookieData = {};
-            
-            cookies.forEach(cookie => {
-                const [name, value] = cookie.split('=');
-                if (name) {
-                    cookieData[name] = value || '';
+            function enableDrag(doc) {
+                // 드래그 제한을 해제하는 스타일 추가
+                var s = doc.createElement('style');
+                s.innerHTML = '*{-webkit-user-select:text!important;-moz-user-select:text!important;-ms-user-select:text!important;user-select:text!important;-webkit-touch-callout:default!important;}body{-webkit-user-select:text!important;user-select:text!important;}';
+                doc.head.appendChild(s);
+                
+                // 드래그를 막는 이벤트 리스너 제거
+                ['selectstart','dragstart','contextmenu','mousedown','keydown'].forEach(function(e) {
+                    doc.addEventListener(e, function(t) {
+                        t.stopPropagation();
+                        return true;
+                    }, true);
+                });
+                
+                // 모든 요소의 드래그 관련 속성 초기화
+                var els = doc.querySelectorAll('*');
+                for (var i = 0; i < els.length; i++) {
+                    var el = els[i];
+                    el.onselectstart = el.ondragstart = el.oncontextmenu = el.onmousedown = null;
+                    el.style.webkitUserSelect = 'text';
+                    el.style.userSelect = 'text';
+                    if (el.getAttribute('unselectable')) {
+                        el.removeAttribute('unselectable');
+                    }
                 }
-            });
-            
-            return cookieData;
-        }
-    },
-    
-    // 소스 보기
-    viewSource: {
-        func: function() {
-            const sourceWindow = window.open('', '_blank');
-            const escapedHtml = document.documentElement.outerHTML
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            
-            sourceWindow.document.write(`
-                <html>
-                <head>
-                    <title>페이지 소스</title>
-                    <style>
-                        body {
-                            font-family: monospace;
-                            white-space: pre-wrap;
-                            background: #f5f5f5;
-                            padding: 20px;
+                
+                // 문서 레벨의 이벤트 핸들러 제거
+                doc.onselectstart = doc.ondragstart = doc.oncontextmenu = doc.onmousedown = null;
+                
+                // 동적으로 추가되는 요소도 처리
+                var observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.addedNodes) {
+                            for (var j = 0; j < mutation.addedNodes.length; j++) {
+                                var node = mutation.addedNodes[j];
+                                if (node.nodeType === 1) {
+                                    node.style.webkitUserSelect = 'text';
+                                    node.style.userSelect = 'text';
+                                    node.onselectstart = node.ondragstart = node.oncontextmenu = null;
+                                }
+                            }
                         }
-                    </style>
-                </head>
-                <body>${escapedHtml}</body>
-                </html>
-            `);
+                    });
+                });
+                observer.observe(doc.body, {childList: true, subtree: true});
+            }
+            
+            // 메인 문서에 적용
+            enableDrag(document);
+            
+            // 모든 iframe에도 적용
+            var frames = document.querySelectorAll('iframe');
+            for (var i = 0; i < frames.length; i++) {
+                try {
+                    if (frames[i].contentDocument) {
+                        enableDrag(frames[i].contentDocument);
+                    }
+                } catch(e) {
+                    console.log('iframe 접근 불가:', e);
+                }
+            }
+            
+            // 나중에 로드되는 iframe도 처리
+            setTimeout(function() {
+                var newFrames = document.querySelectorAll('iframe');
+                for (var k = 0; k < newFrames.length; k++) {
+                    try {
+                        if (newFrames[k].contentDocument) {
+                            enableDrag(newFrames[k].contentDocument);
+                        }
+                    } catch(e) {}
+                }
+            }, 1000);
+            
+            alert('드래깅이 활성화되었습니다! (iframe 포함)');
         }
     },
     
-    // 콘솔 로그
-    consoleLog: {
+    // 문자 찾기 - 단어강조 표시
+    highlightWords: {
         func: function() {
-            console.group('페이지 정보');
-            console.log('URL:', window.location.href);
-            console.log('제목:', document.title);
-            console.log('문서 크기:', document.documentElement.scrollHeight + 'px');
-            console.log('이미지 수:', document.images.length);
-            console.log('링크 수:', document.links.length);
-            console.log('스크립트 수:', document.scripts.length);
-            console.log('스타일시트 수:', document.styleSheets.length);
-            console.groupEnd();
+            const input = prompt("정규식 입력 (예: foo 또는 \\d+):");
+            if (!input) return;
             
-            alert('페이지 정보가 개발자 콘솔에 출력되었습니다. F12를 눌러 확인하세요.');
+            let regex;
+            try {
+                regex = new RegExp(input, "gi");
+            } catch(e) {
+                alert("⚠️ 유효하지 않은 정규식입니다.");
+                return;
+            }
+            
+            let totalMatches = 0;
+            
+            // 애니메이션 스타일 추가
+            const style = document.createElement("style");
+            style.textContent = `
+                @keyframes regex-blink {
+                    0%, 100% {
+                        background-color: yellow;
+                        color: red;
+                    }
+                    50% {
+                        background-color: red;
+                        color: yellow;
+                    }
+                }
+                .regex-highlight {
+                    animation: regex-blink 1s infinite;
+                    font-weight: bold;
+                    padding: 0 2px;
+                    border-radius: 2px;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 텍스트 노드 순회 및 하이라이트
+            const walk = (root) => {
+                const highlight = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const parent = node.parentNode;
+                        const text = node.textContent;
+                        regex.lastIndex = 0;
+                        
+                        let match, lastIndex = 0;
+                        const frag = document.createDocumentFragment();
+                        
+                        while ((match = regex.exec(text)) !== null) {
+                            const before = text.slice(lastIndex, match.index);
+                            const matched = match[0];
+                            
+                            if (before) frag.appendChild(document.createTextNode(before));
+                            
+                            const span = document.createElement("span");
+                            span.textContent = matched;
+                            span.className = "regex-highlight";
+                            frag.appendChild(span);
+                            
+                            totalMatches++;
+                            lastIndex = regex.lastIndex;
+                        }
+                        
+                        if (lastIndex < text.length) {
+                            frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                        }
+                        
+                        if (frag.childNodes.length > 0) {
+                            parent.replaceChild(frag, node);
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && 
+                               !["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) {
+                        for (let i = 0; i < node.childNodes.length; i++) {
+                            highlight(node.childNodes[i]);
+                        }
+                    }
+                };
+                
+                highlight(root.body);
+                
+                // iframe에도 스타일 적용
+                try {
+                    if (root !== document) {
+                        const iframeStyle = root.createElement("style");
+                        iframeStyle.textContent = style.textContent;
+                        root.head.appendChild(iframeStyle);
+                    }
+                } catch(e) {}
+            };
+            
+            // 메인 문서에 적용
+            walk(document);
+            
+            // iframe에도 적용
+            const iframes = document.querySelectorAll("iframe");
+            for (const iframe of iframes) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    walk(doc);
+                } catch(e) {}
+            }
+            
+            alert(totalMatches > 0 ? 
+                `✅ 총 ${totalMatches}개의 항목이 하이라이트 + 번쩍입니다.` : 
+                "❌ 일치 항목이 없습니다.");
+        }
+    },
+    
+    // 문자 찾기 - 파란색 번쩍
+    highlightWordsBlue: {
+        func: function() {
+            const input = prompt("정규식 입력 (예: foo 또는 \\d+):");
+            if (!input) return;
+            
+            let regex;
+            try {
+                regex = new RegExp(input, "gi");
+            } catch(e) {
+                alert("⚠️ 유효하지 않은 정규식입니다.");
+                return;
+            }
+            
+            let totalMatches = 0;
+            
+            // 파란색 애니메이션 스타일 추가
+            const style = document.createElement("style");
+            style.textContent = `
+                @keyframes regex-blink-blue {
+                    0%, 100% {
+                        background-color: #00BFFF;
+                        color: white;
+                    }
+                    50% {
+                        background-color: #0000FF;
+                        color: #00FFFF;
+                    }
+                }
+                .regex-highlight-blue {
+                    animation: regex-blink-blue 1s infinite;
+                    font-weight: bold;
+                    padding: 0 2px;
+                    border-radius: 2px;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 텍스트 노드 순회 및 하이라이트
+            const walk = (root) => {
+                const highlight = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const parent = node.parentNode;
+                        const text = node.textContent;
+                        regex.lastIndex = 0;
+                        
+                        let match, lastIndex = 0;
+                        const frag = document.createDocumentFragment();
+                        
+                        while ((match = regex.exec(text)) !== null) {
+                            const before = text.slice(lastIndex, match.index);
+                            const matched = match[0];
+                            
+                            if (before) frag.appendChild(document.createTextNode(before));
+                            
+                            const span = document.createElement("span");
+                            span.textContent = matched;
+                            span.className = "regex-highlight-blue";
+                            frag.appendChild(span);
+                            
+                            totalMatches++;
+                            lastIndex = regex.lastIndex;
+                        }
+                        
+                        if (lastIndex < text.length) {
+                            frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                        }
+                        
+                        if (frag.childNodes.length > 0) {
+                            parent.replaceChild(frag, node);
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && 
+                               !["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) {
+                        for (let i = 0; i < node.childNodes.length; i++) {
+                            highlight(node.childNodes[i]);
+                        }
+                    }
+                };
+                
+                highlight(root.body);
+                
+                // iframe에도 스타일 적용
+                try {
+                    if (root !== document) {
+                        const iframeStyle = root.createElement("style");
+                        iframeStyle.textContent = style.textContent;
+                        root.head.appendChild(iframeStyle);
+                    }
+                } catch(e) {}
+            };
+            
+            // 메인 문서에 적용
+            walk(document);
+            
+            // iframe에도 적용
+            const iframes = document.querySelectorAll("iframe");
+            for (const iframe of iframes) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    walk(doc);
+                } catch(e) {}
+            }
+            
+            alert(totalMatches > 0 ? 
+                `🔵 총 ${totalMatches}개의 항목이 파란색으로 번쩍입니다.` : 
+                "❌ 일치 항목이 없습니다.");
+        }
+    },
+    
+    // 문자 찾기 - 초록색 번쩍
+    highlightWordsGreen: {
+        func: function() {
+            const input = prompt("정규식 입력 (예: foo 또는 \\d+):");
+            if (!input) return;
+            
+            let regex;
+            try {
+                regex = new RegExp(input, "gi");
+            } catch(e) {
+                alert("⚠️ 유효하지 않은 정규식입니다.");
+                return;
+            }
+            
+            let totalMatches = 0;
+            
+            // 초록색 애니메이션 스타일 추가
+            const style = document.createElement("style");
+            style.textContent = `
+                @keyframes regex-blink-green {
+                    0%, 100% {
+                        background-color: #00FF00;
+                        color: #006400;
+                    }
+                    50% {
+                        background-color: #228B22;
+                        color: #90EE90;
+                    }
+                }
+                .regex-highlight-green {
+                    animation: regex-blink-green 1s infinite;
+                    font-weight: bold;
+                    padding: 0 2px;
+                    border-radius: 2px;
+                    text-shadow: 0 0 2px rgba(0,255,0,0.5);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 텍스트 노드 순회 및 하이라이트
+            const walk = (root) => {
+                const highlight = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const parent = node.parentNode;
+                        const text = node.textContent;
+                        regex.lastIndex = 0;
+                        
+                        let match, lastIndex = 0;
+                        const frag = document.createDocumentFragment();
+                        
+                        while ((match = regex.exec(text)) !== null) {
+                            const before = text.slice(lastIndex, match.index);
+                            const matched = match[0];
+                            
+                            if (before) frag.appendChild(document.createTextNode(before));
+                            
+                            const span = document.createElement("span");
+                            span.textContent = matched;
+                            span.className = "regex-highlight-green";
+                            frag.appendChild(span);
+                            
+                            totalMatches++;
+                            lastIndex = regex.lastIndex;
+                        }
+                        
+                        if (lastIndex < text.length) {
+                            frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                        }
+                        
+                        if (frag.childNodes.length > 0) {
+                            parent.replaceChild(frag, node);
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && 
+                               !["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) {
+                        for (let i = 0; i < node.childNodes.length; i++) {
+                            highlight(node.childNodes[i]);
+                        }
+                    }
+                };
+                
+                highlight(root.body);
+                
+                // iframe에도 스타일 적용
+                try {
+                    if (root !== document) {
+                        const iframeStyle = root.createElement("style");
+                        iframeStyle.textContent = style.textContent;
+                        root.head.appendChild(iframeStyle);
+                    }
+                } catch(e) {}
+            };
+            
+            // 메인 문서에 적용
+            walk(document);
+            
+            // iframe에도 적용
+            const iframes = document.querySelectorAll("iframe");
+            for (const iframe of iframes) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    walk(doc);
+                } catch(e) {}
+            }
+            
+            alert(totalMatches > 0 ? 
+                `🟢 총 ${totalMatches}개의 항목이 초록색으로 번쩍입니다.` : 
+                "❌ 일치 항목이 없습니다.");
+        }
+    },
+    
+    // 문자 찾기 - 보라색 번쩍
+    highlightWordsPurple: {
+        func: function() {
+            const input = prompt("정규식 입력 (예: foo 또는 \\d+):");
+            if (!input) return;
+            
+            let regex;
+            try {
+                regex = new RegExp(input, "gi");
+            } catch(e) {
+                alert("⚠️ 유효하지 않은 정규식입니다.");
+                return;
+            }
+            
+            let totalMatches = 0;
+            
+            // 보라색 애니메이션 스타일 추가
+            const style = document.createElement("style");
+            style.textContent = `
+                @keyframes regex-blink-purple {
+                    0%, 100% {
+                        background-color: #FF00FF;
+                        color: white;
+                        box-shadow: 0 0 10px #FF00FF;
+                    }
+                    50% {
+                        background-color: #8B008B;
+                        color: #DDA0DD;
+                        box-shadow: 0 0 20px #8B008B;
+                    }
+                }
+                .regex-highlight-purple {
+                    animation: regex-blink-purple 1s infinite;
+                    font-weight: bold;
+                    padding: 0 4px;
+                    border-radius: 4px;
+                    display: inline-block;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 텍스트 노드 순회 및 하이라이트
+            const walk = (root) => {
+                const highlight = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const parent = node.parentNode;
+                        const text = node.textContent;
+                        regex.lastIndex = 0;
+                        
+                        let match, lastIndex = 0;
+                        const frag = document.createDocumentFragment();
+                        
+                        while ((match = regex.exec(text)) !== null) {
+                            const before = text.slice(lastIndex, match.index);
+                            const matched = match[0];
+                            
+                            if (before) frag.appendChild(document.createTextNode(before));
+                            
+                            const span = document.createElement("span");
+                            span.textContent = matched;
+                            span.className = "regex-highlight-purple";
+                            frag.appendChild(span);
+                            
+                            totalMatches++;
+                            lastIndex = regex.lastIndex;
+                        }
+                        
+                        if (lastIndex < text.length) {
+                            frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                        }
+                        
+                        if (frag.childNodes.length > 0) {
+                            parent.replaceChild(frag, node);
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && 
+                               !["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) {
+                        for (let i = 0; i < node.childNodes.length; i++) {
+                            highlight(node.childNodes[i]);
+                        }
+                    }
+                };
+                
+                highlight(root.body);
+                
+                // iframe에도 스타일 적용
+                try {
+                    if (root !== document) {
+                        const iframeStyle = root.createElement("style");
+                        iframeStyle.textContent = style.textContent;
+                        root.head.appendChild(iframeStyle);
+                    }
+                } catch(e) {}
+            };
+            
+            // 메인 문서에 적용
+            walk(document);
+            
+            // iframe에도 적용
+            const iframes = document.querySelectorAll("iframe");
+            for (const iframe of iframes) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    walk(doc);
+                } catch(e) {}
+            }
+            
+            alert(totalMatches > 0 ? 
+                `🟣 총 ${totalMatches}개의 항목이 보라색으로 번쩍입니다.` : 
+                "❌ 일치 항목이 없습니다.");
+        }
+    },
+    
+    // 문자 찾기 - 무지개색 번쩍
+    highlightWordsRainbow: {
+        func: function() {
+            const input = prompt("정규식 입력 (예: foo 또는 \\d+):");
+            if (!input) return;
+            
+            let regex;
+            try {
+                regex = new RegExp(input, "gi");
+            } catch(e) {
+                alert("⚠️ 유효하지 않은 정규식입니다.");
+                return;
+            }
+            
+            let totalMatches = 0;
+            
+            // 무지개색 애니메이션 스타일 추가
+            const style = document.createElement("style");
+            style.textContent = `
+                @keyframes regex-blink-rainbow {
+                    0% { background-color: #FF0000; color: white; }
+                    14% { background-color: #FF7F00; color: black; }
+                    28% { background-color: #FFFF00; color: black; }
+                    42% { background-color: #00FF00; color: black; }
+                    57% { background-color: #0000FF; color: white; }
+                    71% { background-color: #4B0082; color: white; }
+                    85% { background-color: #9400D3; color: white; }
+                    100% { background-color: #FF0000; color: white; }
+                }
+                .regex-highlight-rainbow {
+                    animation: regex-blink-rainbow 2s infinite;
+                    font-weight: bold;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    display: inline-block;
+                    transform: scale(1.1);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 텍스트 노드 순회 및 하이라이트
+            const walk = (root) => {
+                const highlight = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const parent = node.parentNode;
+                        const text = node.textContent;
+                        regex.lastIndex = 0;
+                        
+                        let match, lastIndex = 0;
+                        const frag = document.createDocumentFragment();
+                        
+                        while ((match = regex.exec(text)) !== null) {
+                            const before = text.slice(lastIndex, match.index);
+                            const matched = match[0];
+                            
+                            if (before) frag.appendChild(document.createTextNode(before));
+                            
+                            const span = document.createElement("span");
+                            span.textContent = matched;
+                            span.className = "regex-highlight-rainbow";
+                            frag.appendChild(span);
+                            
+                            totalMatches++;
+                            lastIndex = regex.lastIndex;
+                        }
+                        
+                        if (lastIndex < text.length) {
+                            frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                        }
+                        
+                        if (frag.childNodes.length > 0) {
+                            parent.replaceChild(frag, node);
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && 
+                               !["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) {
+                        for (let i = 0; i < node.childNodes.length; i++) {
+                            highlight(node.childNodes[i]);
+                        }
+                    }
+                };
+                
+                highlight(root.body);
+                
+                // iframe에도 스타일 적용
+                try {
+                    if (root !== document) {
+                        const iframeStyle = root.createElement("style");
+                        iframeStyle.textContent = style.textContent;
+                        root.head.appendChild(iframeStyle);
+                    }
+                } catch(e) {}
+            };
+            
+            // 메인 문서에 적용
+            walk(document);
+            
+            // iframe에도 적용
+            const iframes = document.querySelectorAll("iframe");
+            for (const iframe of iframes) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    walk(doc);
+                } catch(e) {}
+            }
+            
+            alert(totalMatches > 0 ? 
+                `🌈 총 ${totalMatches}개의 항목이 무지개색으로 번쩍입니다.` : 
+                "❌ 일치 항목이 없습니다.");
         }
     }
 };
